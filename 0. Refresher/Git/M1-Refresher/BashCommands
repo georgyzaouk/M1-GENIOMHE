@@ -1,0 +1,87 @@
+
+## Manipulating Directories
+
+cd
+cd -
+cd ..
+cd ../..
+
+pwd
+
+mkdir
+rmdir
+rmdir -f 
+rm -r
+
+ls
+mv
+
+find . -name "filename"
+find directory -nale "filename"
+(we can use regex to search for filenames)
+
+
+## Manipulating Files
+
+touch
+touch directory/file
+(we can use absolute or relative path)
+
+vi
+gedit
+
+./file.py
+
+grep
+grep -r
+
+
+## Manipulating Permissions
+
+sudo
+sudo su
+
+chmod 
+
+
+## Special
+
+& (run in the background)
+&& (run in parallel)
+| (pipe)
+
+> (std output redirection)
+2> (error redirection)
+>> (append stdout)
+2>> (append err)
+
+
+
+## Exercises
+
+ex1
+ls year | grep -E "9
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
