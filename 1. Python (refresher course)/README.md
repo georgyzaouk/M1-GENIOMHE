@@ -8,5 +8,4 @@ https://clementbernardd.github.io/python_tutorial/
 https://github.com/guipostic/M1_GENIOMHE_Programming
 
 
-# M1-LinuxRefresher
 
