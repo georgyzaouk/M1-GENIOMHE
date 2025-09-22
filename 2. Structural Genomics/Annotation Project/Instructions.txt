@@ -1,0 +1,22 @@
+Annotation Project
+There are 9 regions from the wheat genome (triticum aestivum ) to annotate.
+
+The annotation project is to be submitted by groups of 2 or 3:
+
+think about the potential difficulties of annotating wheat before you start predicting genes (hexaploid genome, homeologous genes, 80% of transposable elements)
+
+you must completely annotate the given sequence:
+
+- genes: complete coordinates of intron-exon structure and UTR, , validation by the presence of transcribed sequences and/or homologous genes.
+
+- proteins : potential protein functions, motifs and domaines
+
+- transposable elements: coordinates and family of the transposable element.
+
+The report must be written in laboratory notebook format. It must be made in such a way that I can repeat the analysis you have carried out with all parameters for each tool.
+
+Send me a table with the names in each groups and the sequence to be annotated.
+
+deadline : end of december, submission on ecampus
+
+N. Boudet
