@@ -1,0 +1,868 @@
+---
+title: "Study of the dataset  birthwt"
+author: "ML Taupin"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2  # Depth of headers to include in the TOC
+    number_sections: true  # Optional: to number the sections
+---
+# Main stepsLes grandes étapes
+
+## Context of the study
+
+## Which is the "output"?
+
+## Identify the types of variables (qualitative, discrete quantitative, or continuous quantitative)
+
+## Change qualitative variables to “factor” (R should no longer perform operations on them) with the \textit{mutate} command.
+
+## Check if there is any missing data 
+
+
+# Graphs:
+
+## For continuous variables: histograms or box plots
+
+## For discrete variables: bar charts
+
+## For qualitative variables: bar charts
+
+# Summary of appropriate statistic tests
+
+
+
+
+## A) Independence between discrete qualitative or quantitative variables (with few modalities): $\chi^2$ test of independence
+
+
+## B)  Liaison entre une variable continue et une variable qualitative à 2 modalités
+
+## B)  Link between a continuous (or discrete) variable and a qualitative variable with 2 modalities
+
+
+2) Kolmogorov-Smirnov distribution function equality test $ks.test$
+3) Mann-Whitney test $wilcoxtest$
+
+## Bbis) If the qualitative variable has more than two categories (e.g., three categories), we will test the equality of means in the three groups defined by the qualitative variable.
+Example: We study the weight of babies according to race. The command $R$ will be
+\textit{oneway.test(bwt~RACE)}
+Let X be the weight of babies born to mothers such that RACE = white.
+Let Y be the weight of babies born to mothers such that RACE = black.
+Let Z be the weight of babies born to mothers such that RACE = other.
+The hypothesis $H_0: \mathbb{E}(X)=\mathbb{E}(Y)=\mathbb{E}(Z);$ The hypothesis $H_1$ is “there is a pair among $X,Y,Z$ for which the expectations are different.”
+
+##C) Relationship between continuous variables
+1) Kolmogorov-Smirnov independence test $indeptest$
+2) Pearson correlation test $cortest$
+
+
+
+
+# Study of the \textit{birthwt} dataset on baby weights
+
+
+```{r}
+knitr::opts_chunk$set(fig.height=5, fig.width=7)
+```
+
+
+
+
+```{r,include=FALSE,echo=FALSE}
+knitr::opts_chunk$set(fig.height=5, fig.width=7)
+library(MASS)
+library(dplyr,quietly=TRUE)
+library(plyr)
+library(ggplot2,quietly=TRUE)
+library(nortest)
+library(knitr) 
+library(stats)
+library(scales)
+library(robusTest)
+opts_template$set(figure1 = list(fig.height = 4, fig.width = 4), 
+                  figure2 = list(fig.height = 2, fig.width = 5), 
+                  figure3 = list(fig.height =10, fig.width = 14))
+```
+```{r}
+help(birthwt) # informations on the dataset
+glimpse(birthwt)
+summary(birthwt) 
+# Many variables for which mathematical operations are not relevant because
+# they are codes for variables that are actually qualitative.
+dim(birthwt)
+# missing datas?
+na_count = cbind(1:ncol(birthwt), sapply(birthwt, function(j) sum(length(which(is.na(j))))))
+na_count
+which(duplicated(birthwt))
+birthwt$smoke_ht=birthwt$smoke*birthwt$ht
+#=> no missing datas (in the sens of R)
+birthwt = mutate(birthwt, smoke=factor(smoke),
+                  low = factor(low),
+                  race = factor(race),
+                  ui = factor(ui),
+                 ht=factor(ht),
+                 smoke_ht=factor(smoke_ht)
+)
+summary(birthwt)
+#R does not know "low" before "attach". R knows "birthwt$low" 
+birthwt$low
+attach(birthwt,warn.conflicts=FALSE)
+low
+# From now on, you can use variable names 
+#without putting “birthwt$variable name” in front.
+glimpse(birthwt)
+summary(birthwt)
+sum(ptl==1)
+sum(ptl==2)
+sum(ptl==3)
+```
+# Few graphs
+## Frequency distribution of the variable “low”
+
+```{r,opts.label = "figure2"}
+# Barplot
+ggplot(birthwt, aes(x = as.factor(low))) +
+  geom_bar(fill = "steelblue", aes(y = (after_stat(count))/sum(after_stat(count)))) +  theme_bw()+
+  geom_text(aes(y = ((after_stat(count))/sum(after_stat(count))), label = scales::percent((after_stat(count))/sum(after_stat(count)))), stat = "count", vjust = -0.25) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Repartition BB with normal weight
+      (low=0) vs. BB with small weight (low=1)", y = "Percent", x = "BB with small weight (low)")+ 
+  theme(plot.title = element_text(color="red", size=8, face="bold.italic"))+
+ scale_y_continuous(limit = c(0, 1))
+ggsave(filename = "distribution_low.png", 
+       height = 8.5, # expected dimensions
+       width = 11, 
+       units = "in")
+```
+## Frequency distribution of the variable “smoke”
+
+```{r,opts.label = "figure2"}
+# Barplot
+library(scales)
+ggplot(birthwt, aes(x = as.factor(smoke))) +
+  geom_bar(fill = "steelblue", aes(y = (after_stat(count))/sum(after_stat(count)))) +  theme_bw()+
+  geom_text(aes(y = ((after_stat(count))/sum(after_stat(count))), label = scales::percent((after_stat(count))/sum(after_stat(count)))), stat = "count", vjust = -0.25) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Repartition of non smoker (smoke=0) vs. smoker (smoke=1)", y = "Percent", x = "non smoker (smoke=0) vs smoker (smoke=1)")+ 
+  theme(plot.title = element_text(color="red", size=8, face="bold.italic"))+
+ scale_y_continuous(limit = c(0, 1))
+```
+## Frequency distribution of the variable “ht”
+
+```{r,opts.label = "figure2"}
+# barplot
+library(scales)
+ggplot(birthwt, aes(x = as.factor(ht))) +
+  geom_bar(fill = "steelblue", aes(y = (after_stat(count))/sum(after_stat(count)))) +  theme_bw()+
+  geom_text(aes(y = ((after_stat(count))/sum(after_stat(count))), label = scales::percent((after_stat(count))/sum(after_stat(count)))), stat = "count", vjust = -0.25,size=7) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Répartition of women with or without 
+       high blood pressure", y = "Percent", x = "no high blood pressure vs high blood pressure (ht)")+ 
+  theme(plot.title = element_text(color="red", size=8, face="bold.italic"))+
+ scale_y_continuous(limit = c(0, 1.1))
+```
+
+## Frequency distribution of the variable “ui”
+
+```{r,opts.label = "figure2"}
+#Barplot
+library(scales)
+ggplot(birthwt, aes(x = as.factor(ui))) +
+  geom_bar(fill = "steelblue", aes(y = (after_stat(count))/sum(after_stat(count)))) +  theme_bw()+
+  geom_text(aes(y = ((after_stat(count))/sum(after_stat(count))), label = scales::percent((after_stat(count))/sum(after_stat(count)))), stat = "count", vjust = -0.25,size=6) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Repartition of women with or without
+       women with or without uterine irritability", y = "Percent", x = "no uterine irritability vs uterine irritability")+ 
+  theme(plot.title = element_text(color="red", size=10, face="bold.italic"))+
+ scale_y_continuous(limit = c(0, 1))
+```
+
+## Frequency distribution of the variable “ftv”
+```{r,opts.label = "figure2"}
+# Barplot
+ggplot(birthwt, aes(x = as.factor(ftv))) +
+  geom_bar(fill = "steelblue", aes(y = (after_stat(count))/sum(after_stat(count)))) +  theme_bw()+
+  geom_text(aes(y = ((after_stat(count))/sum(after_stat(count))), label = scales::percent((after_stat(count))/sum(after_stat(count)))), stat = "count", vjust = -0.25) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Distribution of ftv", y = "Percent", x = "number of appointment to the physician during the first semester")+ 
+  theme(plot.title = element_text(color="red", size=8, face="bold.italic"))#+scale_y_continuous(limit = c(0, 1))
+ggsave(filename = "distribution_ftv.png", 
+       height = 8.5, 
+       width = 11, 
+       units = "in")
+```
+
+
+
+
+
+# Relationship between qualitative variables (or discrete quantitative variables with few categories): $\chi^2$ test of independence: the chi-square test of independence.
+
+
+
+The two hypothesis are:
+
+
+\begin{eqnarray*}
+(H_0)~:&& X\mbox{ and } Y \mbox{ sont independent }\\
+(H_1)~:&& X \mbox{ and } Y \mbox{ sont linked }\end{eqnarray*}
+that is
+\begin{eqnarray*}
+(H_0)~:&& \mathbb{P}(X=u_j\mbox{ and }Y=v_k)=\mathbb{P}(X=u_j)\mathbb{P}(Y=v_k)\quad \forall (j,k) \in\{1,\cdots,J\}\times\{1,\cdots,K\}\\
+ (H_1)~:&& \mbox{ there exists }(j,k)\in\{1,\cdots,J\}\times\{1,\cdots,K\} \mbox{ such that }\mathbb{P}(X=u_j\mbox{ et }Y=v_k)\neq\mathbb{P}(X=u_j)\mathbb{P}(Y=v_k).
+\end{eqnarray*}
+Nous allons estimer $\mathbb{P}(X=u_j\mbox{ et }Y=v_k)$, $\mathbb{P}(X=u_j)$ et
+$\mathbb{P}(Y=v_k)$, et comparer leurs estimateurs. On peut estimer, de
+manière naturelle $\mathbb{P}(X=u_j\mbox{ et }Y=v_k)$, $\mathbb{P}(X=u_j)$ et
+$\mathbb{P}(Y=v_k)$, respectivement par
+$$\frac{N_{j,k}}{n}\quad ;\quad \frac{N_{j\bullet}}{n}\quad
+;\quad \frac{N_{\bullet k}}{n}\ .$$ Sous
+$(H_0)$, les différences
+$\frac{N_{j,k}}{n}-\frac{N_{j\bullet}}{n}\frac{N_{\bullet k}}{n}$
+ne doivent \^etre dues qu'aux fluctuations d'échantillonnage. On
+va donc comparer $\displaystyle\frac{N_{j,k}}{n}$ et
+$\displaystyle\frac{N_{j\bullet}}{n}\displaystyle\frac{N_{\bullet
+k }}{n}$, ce qui revient à comparer les $N_{j,k}$, effectifs
+réels, aux $\displaystyle\frac{N_{j\bullet}N_{\bullet  }}{n}$,
+effectifs théoriques sous $(H_0)$. \\ 
+Alors, la statistique de test,
+$$T_{n}=\sum_{j=1}^J\sum_{k=1}^K\frac{\left(N_{j,k}-\displaystyle\frac{N_{j\bullet}N_{\bullet
+k }}{n}\right)^2}{\displaystyle\frac{N_{j\bullet}N_{\bullet k
+}}{n}}.$$ La loi de $T_n$ sous $(H_0)$ est donnée par le
+résultat suivant
+
+
+\underline{Proposition}
+Si les conditions suivantes sont satisfaites
+\begin{itemize}
+\item $n$ est grand
+\item les classes constituent un système complet d'événements,
+c'est-à-dire toute valeur théorique appartient à une et une seule
+classe
+\item  les effectifs théoriques par
+classe sont suffisamment importants
+$\displaystyle\frac{N_{j\bullet}N_{\bullet k }}{n}\geq 5$ $\forall (j,k)\in\{1,\cdots,J\}\times\{1,\cdots,K\}.$
+\end{itemize}
+Alors, sous $(H_0)$
+$$T_n\underset{n \rightarrow +\infty}{\overset{\mathcal{L},H_0}{\longrightarrow}}\mathcal{X}^2((J-1)(K-1)).\;$$
+
+Pour un test de niveau $\alpha$, on impose $\mathbb{P}_{H_0}(\mbox{
+rejetter }H_0)\leq\alpha.$ On rejette $(H_0)$ quand $T_n$ prend de
+grandes valeurs. Ainsi, $ZR_\alpha=\{T_n\geq c_\alpha\}$ avec
+$c_\alpha$ est tel que
+ $\mathbb{P}(\mathcal{X}^2((J-1)(K-1))\geq c_\alpha)=\alpha$.
+  On en déduit la
+règle de décision : si $T_n>c_\alpha$, on rejette $(H_0)$, sinon
+on ne rejette pas $(H_0)$ au niveau $\alpha$.
+
+ \underline{Remarques}
+\begin{enumerate}
+\item S'il existe une classe, telle que l'effectif théorique est
+inférieur à $5$, alors on regroupe deux (ou plus) classes.
+\item Il y a $(J-1)(K-1)$ nombre de classes $-$ nombre de
+paramètres estimés $-1$ degrés de liberté. Sous $(H_0)$,
+$\mathbb{P}(X=u_i\mbox{ et }Y=v_j)=\mathbb{P}(X=u_j)\mathbb{P}(Y=v_k)$, donc les
+$\mathbb{P}(X=u_i\mbox{ et }Y=v_j)$ se calculent à partir des
+$\mathbb{P}(X=u_j)$ et des $\mathbb{P}(Y=v_k)$. De plus $\displaystyle\sum_{j=1}^J
+\mathbb{P}(X=u_j)=1$, il suffit d'estimer $J-1$ $\mathbb{P}(X=u_j)$ ; de m\^eme
+$\displaystyle\sum_{k=1}^K \mathbb{P}(Y=v_k)=1$, il suffit d'estimer $K-1$
+$\mathbb{P}(Y=v_k)$. Il y a donc en tout, $(J-1)+(K-1)=J+K-2$ paramètres
+à estimer. Le nombre de classes étant égal à $I\times l$, il
+y a donc $JK-(J+K-2)-1=JK-J-K+1=(J-1)(K-1)$ degrés de liberté.
+\end{enumerate}
+
+
+
+
+
+```{r}
+chisq.test(smoke,low, correct=FALSE) 
+```
+petite pvalue=> rejet de HO=> les variables $smoke$ et $low$ ne sont pas indépendantes
+```{r}
+chisq.test(low,smoke,correct=F)$observed  #effectifs observés
+chisq.test(low,smoke,correct=F)$expected  #effectifs théoriques ou attendus
+```
+On rejette $H_0$ et on conclut que $smoke$ et $low$ sont liées.
+
+
+# Lien entre low et autres variables qualitatives
+```{r}
+chisq.test(low,smoke) # les variables ne semblent pas indépendantes
+chisq.test(low,ui) #les variables sont liées
+chisq.test(low,ht) #effectifs théoriques pas tous plus grand que 5
+chisq.test(low,ht)$expected # un des effectifs <5 => test de fisher...
+fisher.test(low,ht)# on rejette H0 et on conclut que les variables sont liées
+chisq.test(ht,smoke)
+fisher.test(ht,smoke)
+chisq.test(smoke,ui)
+chisq.test(race,low)
+chisq.test(low,ftv)
+fisher.test(low,ftv) 
+chisq.test(low,ptl)
+fisher.test(low,ptl)
+chisq.test(ui,ptl)
+fisher.test(ui,ptl)
+chisq.test(smoke_ht,low)
+chisq.test(smoke_ht,low)$expected
+fisher.test(smoke_ht,low)
+```
+
+
+
+# Liaison entre une variable quantitative continue et une variable qualitative (low et lwt)
+
+## Lien entre poids de la mère et variable low : graphiques
+
+
+```{r,opts.label = "figure2"}
+#Boite à moustaches
+ggplot(birthwt, aes(low, lwt)) + 
+  geom_boxplot(aes(fill = low))+labs(title="Boxplot poids de la mère selon low ",x="low", y = "lwt") + theme(plot.title = element_text(face = "bold"))
+```
+
+
+```{r,opts.label = "figure2"}
+# Histogramme en fréquence
+library(MASS)
+library(ggplot2)
+birthwtlow0<- subset(birthwt, low == "0")
+birthwtlow1<- subset(birthwt, low == "1")
+library(plyr)
+mu <- ddply(birthwt, "low", summarise, grp.mean=mean(lwt))
+head(mu)
+ggplot() + 
+  geom_histogram(aes(x=lwt, y=(after_stat(count))*100/sum(after_stat(count)),color="red", fill="red"), fill="red", alpha=.4, colour="red", data=birthwtlow0, binwidth =10)+ 
+  geom_histogram(aes(x=lwt,y=(after_stat(count))*100/sum(after_stat(count)), color="blue", fill="blue"), fill="blue", alpha=.4, colour="blue", data=birthwtlow1, binwidth=10)+ 
+  coord_cartesian(xlim = c(70, 270))+ 
+  xlab("poids de la mère")+ ylab("percent (%) ")+geom_vline(data=mu, aes(xintercept=grp.mean, color=low),linetype="dashed") +
+  scale_colour_manual(name="group", values=c("r" = "red", "b"="blue"), labels=c("b"="blue values", "r"="red values")) +
+  scale_fill_manual(name="group", values=c("r" = "red", "b"="blue"), labels=c("b"="blue values", "r"="red values"))+
+  labs(title="histogramme poids des mères BB selon low ",x="lwt", y = "percent") + 
+  theme(plot.title = element_text(face = "bold"))+ theme(plot.title = element_text(hjust = 0.5))+
+  annotate(geom="text", x=220, y=20, label="Histogramme lwt /low=0", color="red")+
+  annotate(geom="text", x=200, y=10, label="histogramme lwt /low=1",color="blue")
+```
+
+
+
+
+
+
+## Présentation des Tests
+
+
+Considérons $X_1,\cdots,X_{n_1}$, $n_1$ variables aléatoires i.i.d. de loi $P_X$ et $Y_1,\cdots,Y_{n_2}$, $n_2$
+ variables aléatoires i.i.d. de loi $P_Y$, avec $(X_1,\cdots,X_{n_1})$ et $(Y_1,\cdots,Y_{n_2})$, indépendants.
+ On souhaite comparer les lois  (ou les espérances)  des $X_i$ et des $Y_i$ sont les m\^emes.
+ Nous disposons de trois tests
+\begin{itemize}
+ \item Tests de comparaison d'espérances (tests de Welsch)
+  \item Test de Kolmogorov Smirnov de comparaison de 2 échantillons. \textit{ks.test}
+    \item    Test de la somme des rangs de Wilcoxon (ou  Mann-Whitney). \textit{cortest(X,Y)}
+  \end{itemize}
+
+
+
+## 1) Test de comparaison d'espérances pour deux échantillons indépendants
+
+La statistique de test à utiliser est
+  
+  $$T_{n_X,n_Y}=\frac{ \bar X-\bar Y}{\sqrt{\frac{S_X^2}{n_X} +\frac{S_Y^2}{n_Y}   }           },$$
+  avec
+  $$S_X^2=\frac{1}{n_X-1}\sum_{i=1}^{n_X} (X_i-\bar X)^2 \mbox{ et } S_Y^2=\frac{1}{n_Y-1}\sum_{i=1}^{n_Y} (Y_i-\bar Y)^2 .$$
+  On peut montrer que sous $H_0$, $T_{n_X,n_Y}\underset{n \rightarrow +\infty}{\overset{\mathcal{L},H_0}{\longrightarrow}} \mathcal{N}(0,1).$ On rejette $H_0$ quand $\vert T_{n_X,n_Y}\vert \geq u_\alpha$ o\`u $u_\alpha$ est le quantile d'ordre $1-\alpha/2$ de la loi 
+  $\mathcal{N}(0,1).$
+  On rejette $(H_0)$ pour des grandes valeurs de la statistique de test.
+
+
+
+
+
+```{r}
+# Test d'égalité d'espérances
+Y<- lwt[low==1]
+X<- lwt[low==0]
+n1<- sum(low==1)
+n0<- sum(low==0)
+n0
+n1
+summary(Y)
+quantile(Y,probs=c(0.01,0.25,0.5,0.75,0.99))
+Y<- lwt[low==1]
+X<- lwt[low==0]
+n1<- sum(low==1)
+n0<- sum(low==0)
+n0
+n1
+shapiro.test(lwt[low==1]) # non gaussien
+shapiro.test(lwt[low==0]) # non gaussien
+# Pas de test de Student: on utilise le TLC
+T<- (mean(X)-mean(Y))/sqrt(var(X)/length(X)+var(Y)/length(Y))
+pvalue<- 2*(1-pnorm(abs(T),0,1))
+pvalue #test signficatif: espérances du poids de la mère sont différentes dans les deux groupes
+```
+## 2) Test d'égalité de fonctions de répartition
+Considérons $X_1,\cdots,X_{n_X}$, $n_X$ variables aléatoires
+i.i.d. continues de loi $P_X$ et $Y_1,\cdots,Y_{n_Y}$, $n_Y$
+variables aléatoires i.i.d. continues de loi $P_Y$, avec
+$(X_1,\cdots,X_{n_X})$ et $(Y_1,\cdots,Y_{n_Y})$, indépendants. On
+souhaite savoir si les lois des deux variables aléatoires sont les
+m\^emes. 
+$$(H_0):F_X=F_Y \mbox{ contre }(H_0):F_X\not=F_Y.$$
+La statistique de test est donnée par $$
+\sqrt{\frac{n_Xn_Y}{n_X+n_Y}}\sup_{x\in\mathbb{R}}\mid \widehat{F}_{n_X}(x)-\widehat G_{n_Y}(x)\mid,
+$$
+où
+$$
+\widehat{F}_{n_X}(x)=\frac{1}{n_X}\sum_{i=1}^{n_X} \mathbb{I}_{X_i\leq
+x}\mbox{ et }
+ \widehat{G}_{n_Y}(x)=\frac{1}{n_Y}\sum_{i=1}^{n_Y}
+\mathbb{I}_{Y_i\leq x}.
+$$
+Les quantités 
+$\widehat{F}_{n_X}(x)$ et $\widehat{G}_{n_Y}(x)$ sont des estimateurs de $F_X$ et $G_Y$.
+
+
+```{r}
+ks.test(lwt[low==1],lwt[low==0]) # teste l'égalité des fonctions de répartitions=> on rejette : les lois sont différentes.
+```
+
+## 3) Test de Mann-Whitney
+Consid\'erons $X_1,\cdots,X_{n_1}$, $n_1$ variables al\'eatoires
+i.i.d. de loi $P_X$ et $Y_1,\cdots,Y_{n_2}$, $n_2$
+ variables al\'eatoires i.i.d. de loi $P_Y$, avec $(X_1,\cdots,X_{n_1})$ et $(Y_1,\cdots,Y_{n_2})$, ind\'ependants.
+ On cherche \`a savoir si les variables $Y_i$ ont tendance \`a prendre des plus grandes valeurs que les $X_i$. Notons $Med(Y-X)$ la m\'ediane de $Y_i-X_i$. Pour r\'epondre \`a la questions on peut tester
+ $$(H_0): Med(Y-X)=0 \mbox{ contre } (H_1): Med(Y-X)\not=0.$$
+\textbf{La fonction $R$ dans le package $robusTest$ est : $wilcoxtest$.}
+
+
+```{r}
+wilcoxtest(lwt[low==1],lwt[low==0],paired=FALSE, ties.break='random')
+```
+Tous les tests vont dans le même sens: le poids des mères a une distribution (ou une espérance) différente dans les deux groupes définis par low=0 et low=1
+
+
+
+## Liaison entre l'âge de la mère et le fait d'avoir un bébé de faible poids.
+
+```{r,opts.label = "figure2"}
+ggplot(birthwt, aes(low, age)) + 
+  geom_boxplot(aes(fill = low))+labs(title="Boxplot age de la mère selon low ",x="low", y = "age") + theme(plot.title = element_text(face = "bold"))
+```
+
+
+
+
+
+# Liaison entre une variables quantitative continue et une variable qualitative (smoke et bwt)
+
+## Poids des bebes selon smoke, données non appariées (graphiques et tests)
+
+
+```{r,opts.label = "figure2"}
+# Boite à moustache
+ggplot(birthwt, aes(smoke, bwt)) + 
+  geom_boxplot(aes(fill = smoke))+labs(title="Boxplot poids du bébé selon smoke ",x="smoke", y = "poids du bébé") + theme(plot.title = element_text(face = "bold"))
+```
+
+
+```{r,opts.label = "figure2"}
+# Histogramme
+birthwtsmoke0<-subset(birthwt, smoke == "0")
+birthwtsmoke1<-subset(birthwt, smoke == "1")
+attach(birthwtsmoke0)
+attach(birthwtsmoke1)
+library(plyr)
+mu <- ddply(birthwt, "smoke", summarise, grp.mean=mean(bwt))
+head(mu)
+p<- ggplot() + 
+  geom_histogram(aes(x=bwt, y=(..count..)*100/sum(..count..),color="red", fill="red"), fill="red", alpha=.4, colour="red", data=birthwtsmoke0, binwidth =100)+ 
+  geom_histogram(aes(x=bwt,y=(..count..)*100/sum(..count..), color="blue", fill="blue"), fill="blue", alpha=.4, colour="blue", data=birthwtsmoke1, binwidth=100)+ 
+  coord_cartesian(xlim = c(700, 5010))
+p
+p<-p+
+  xlab("poids du BB")+ ylab("percent (%) ")+geom_vline(data=mu, aes(xintercept=grp.mean, color=smoke),linetype="dashed") +
+  scale_colour_manual(name="group", values=c("r" = "red", "b"="blue"), labels=c("b"="blue values", "r"="red values")) +
+  scale_fill_manual(name="group", values=c("r" = "red", "b"="blue"), labels=c("b"="blue values", "r"="red values"))+
+  labs(title="histogramme poids des BB selon smoke ",x="poids du BB", y = "percent") + 
+  theme(plot.title = element_text(face = "bold"))+ theme(plot.title = element_text(hjust = 0.5))+
+  annotate(geom="text", x=4000, y=9, label="Histo bwt /smoke=0", color="red")+
+  annotate(geom="text", x=1250, y=8, label="Histo bwt /smoke=1",color="blue")
+p+geom_vline(data=mu, aes(xintercept=grp.mean, color=smoke),
+             linetype="dashed")
+```
+
+
+### Graphiques
+```{r,opts.label = "figure2",include=TRUE,echo=FALSE}
+birthwt0<- subset(birthwt, smoke == "0")
+birthwt1<- subset(birthwt, smoke == "1")
+attach(birthwt0)
+attach(birthwt1)
+n1< - sum(birthwt$smoke==1)
+n0<- sum(birthwt$smoke==0)
+n0
+n1
+summary(birthwt0)
+quantile(X,probs=c(0.01,0.25,0.5,0.75,0.99)) 
+summary(birthwt1)
+quantile(Y,probs=c(0.01,0.25,0.5,0.75,0.99))
+```
+
+
+
+
+
+
+
+
+
+
+
+## Tests (liaison entre bwt et smoke)
+```{r,include=TRUE,echo=FALSE}
+attach(birthwt)
+length(bwt[birthwt$smoke=="1"])
+length(bwt[birthwt$smoke=="0"])
+ #+> on peut utiliser le TLC
+ attach(birthwt)
+shapiro.test(bwt[smoke==1]) # on peut accepter que c'est un échantillon gaussien
+shapiro.test(bwt[smoke==0]) # on peut accepter que c'est un échantillon gaussien
+t.test(bwt~smoke, var.equal=FALSE,alternative="two.sided") # Test adapté ici car échantillons gaussiens
+
+# on peut utiliser le test de student ou le test avec le TLC
+#test avec le TLC
+stat_test<- (mean(bwt[smoke==1])-mean(bwt[smoke==0]))/sqrt(var(bwt[smoke==0])/length(bwt[smoke==0])+var(bwt[smoke==1])/length(bwt[smoke==1])) #test de comparaison d'espérances (asymptotique)
+pvalue<- 2*(1-pnorm(abs(stat_test),0,1))
+pvalue
+#autre solution
+oneway.test(bwt~smoke,data=birthwt)
+# les espérances sont significativement différentes, # test significatif: les espérances des poids des BB sont significativement différentes dans les deux groupes des mères qui ont ou non fumé pendant leur grossesse.
+ks.test(bwt[smoke=="0"],bwt[smoke=="1"],alternative="two.sided") 
+bwt0=bwt[smoke=="0"]
+bwt1=bwt[smoke=="1"]
+attach(birthwt)
+ks.test(bwt0,bwt1,alternative="two.sided")
+# test de comparaison de la loi du poids du BB chez les fumeuses et les non fumeuses => Fonction de répartition de X est différente de celle de Y=> poids des BB a une distribution différente chez les fumeuses et les non fumeuses.
+# Test de Mann et Whitney corrigé
+wilcoxtest(bwt[smoke==1],bwt[smoke==0],paired=FALSE, ties.break='random') # H0: med(Y-X)=0
+# On rejette HO et onconclut que med(Y-X) n'est pas égale à 0
+# les trois tests vont dans la même direction: lien antre être fumeuse et avoir un bébé de faible poids
+chisq.test(low,smoke)
+```
+
+
+```{r}
+stat_test<- (mean(age[low=="1"])-mean(age[low=="0"]))/sqrt(var(age[low=="0"])/length(age[low=="0"])+var(age[low=="1"])/length(age[smoke=="1"]))
+pvalue<- 2*(1-pnorm(abs(stat_test),0,1))
+pvalue
+
+ks.test(age[low=="0"],age[low=="1"],alternative="two.sided")
+wilcoxtest(age[low=="1"],age[smoke=="0"],paired=FALSE, ties.break='random') # 
+```
+## Et si on met l'âge mis en classe=> test du $\chi^2$ d'indépendance
+
+```{r,opts.label = "figure2"}
+birthwt$ageclasse[birthwt$age<=20]<- "age1"
+birthwt$ageclasse[birthwt$age>20 & birthwt$age<=30]<- "age2"
+birthwt$ageclasse[birthwt$age>30 & birthwt$age<=40]<- "age3"
+birthwt$ageclasse[birthwt$age>40]<- "age4"
+attach(birthwt,warn.conflicts=FALSE)
+head(ageclasse)
+```
+
+## Autres Tests
+
+```{r}
+chisq.test(ageclasse,low)
+chisq.test(ageclasse,low)$expected # il faut regrouper les classes d'age 3 et 4
+chisq.test(table(ageclasse,low))
+```
+```{r,opts.label = "figure3"}
+birthwt$ageclasse2[birthwt$age<=20]<- "age1"
+birthwt$ageclasse2[birthwt$age>20 & birthwt$age<=30] <- "age2"
+birthwt$ageclasse2[birthwt$age>30]<- "age3_4"
+attach(birthwt,warn.conflicts=FALSE)
+chisq.test(ageclasse2,low)
+chisq.test(ageclasse2,low) # pas de lien entre la variable age mise en classe et la variable low
+chisq.test(ageclasse2,low)$expected
+chisq.test(table(ageclasse2,low))
+```
+
+
+
+# Liaison entre variables quantitatives continues
+
+## Présentation des tests
+
+## 1) Test d'indépendance entre variables continues
+
+Considérons  des couples  $(X_1,Y_1)\cdots (X_n,Y_n)$ $n$ copies indépendantes d'un couple $(X,Y)$ de variables aléatoires réelles. Supposons de plus que les variables $X$ et $Y$ sont continues.
+On souhaite tester 
+$$(H_0): X \mbox{ et } Y \mbox{ sont indépendantes contre } (H_1 ): X \mbox{ et } Y \mbox{ ne sont pas indépendantes } .$$
+L'hypothèse nulle revient donc à écrire que pour tous $s$ et $t$ dans $\mathbb{R}$,
+$$\mbox{ pour tous } t \in \mathbb{R} \mbox{ et tous } s \in \mathbb{R}\mathbb{P}(X\leq s \cap Y\leq t)=\mathbb{P}(X\leq s)\mathbb{P}(Y\leq t).$$
+La statistique de test sera alors 
+$$T_n=\sqrt{n}\sup_{s, t\in \mathbb{R}} \mid \frac{1}{n}\sum_{i=1}^n\mathbb{I}_{X_i\leq s,Y_i\leq t}-F_{n,X}(s)F_{n,Y}(t)\mid,$$
+o\`u
+
+$$F_{n,X}(s)=\frac{1}{n}\sum_{i=1}^n\mathbb{I}_{X_i\leq s}, \mbox{ et }  F_{n,Y}(t)=\frac{1}{n}\sum_{i=1}^n\mathbb{I}_{Y_i\leq t}.$$
+  
+On rejette $(H_0)$ pour des grandes valeurs de $T_n$.
+
+## 2) Test de corrélation de Pearson
+
+On peut également tester la non corrélation entre deux variables continues. On utilisera le test de Pearson.
+
+Soient $(X_1,Y_1)\cdots (X_n,Y_n)$ des couples de variables aléatoires quantitatives indépendantes et identiquement distribuées. On suppose que les variables $X_i$ et $Y_i$ possèdent un moment d'ordre 2 et on note 
+$\mu_X$ l'espérance des $X_i$ et $\mu_Y$ l'espérance des $Y_i$. On note $\rho$ le coefficient de corrélation entre $X_i$ et $Y_i$. On souhaite tester
+$$(H_0): \rho=0 \mbox{ contre } \rho\not=0, \mbox{ où } \rho=\frac{\mbox{Cov}(X,Y)}{\sigma_X\sigma_Y}.$$
+
+La statistique de test à utiliser est la suivante
+$$ T_n=\frac{\sum_{k=1}^, (X_k-\bar X_k)(Y_k-\bar Y_k)}{\sqrt{\sum_{k=1}^n(Z_k-\bar Z_k)^2 }}, \mbox { où } Z_k=(X_k-\bar X_k)(Y_k-\bar Y_k)
+.$$
+
+Sous l'hypothèse
+$0< \mathbb{E}[(X_i-\mu_X)^2(Y_i-\mu_Y)^2]<\infty$, on peut montrer que sous $(H_0)$, $T_n \underset{n \rightarrow +\infty}{\overset{\mathcal{L},H_0}{\longrightarrow}} \mathcal{N}(0,1).$ La zone de rejet est donc
+$$ R_{n,\alpha}=\{\mid T_n \mid > u_\alpha\}$$ o\`u $u_\alpha$ est le quantile d'ordre $1-\alpha/2$ de la loi $\mathcal{N}(0,1).$
+
+## liaison entre lwt et bwt
+
+## Graphique: nuage de points
+
+```{r,opts.label = "figure2"}
+attach(birthwt)
+ggplot(data = birthwt, aes(lwt,bwt)) + 
+  geom_point()+ 
+  geom_smooth(method="lm", formula=y ~ x)+ 
+  labs(title="bwt en fonction de lwt ",x="lwt", y = "bwt") # peu lisible
+```
+
+## Mise en oeuvre des tests
+
+```{r}
+cor(lwt,bwt) # Coefficient de corrélation linéaire
+cortest(lwt,bwt,ties.break="random") # Test de Pearson modifié 
+indeptest(lwt,bwt,ties.break="random") # Test d'indépendance
+# dans les deux cas on rejette H0
+```
+
+```{r}
+attach(birthwt)
+model.0=glm(low~1,family=binomial,data=birthwt)
+model.smoke=glm(low~smoke,family=binomial,data=birthwt)
+model.ht=glm(low~ht,family=binomial,data=birthwt)
+model.ht.smoke=glm(low~ht+smoke,family=binomial,data=birthwt)
+library(Epi)
+twoby2(low,smoke)
+twoby2(low,ht)
+model.full=glm(low~age+lwt+race+smoke+ptl+ht+ui+ftv, family=binomial, data=birthwt) 
+summary(model.full)
+anova(model.0,model.full,test="Chisq")
+anova(model.0,model.smoke,test="Chisq")
+anova(model.ht,model.ht.smoke,test="Chisq")
+anova(model.smoke,model.ht.smoke,test="Chisq")
+
+```
+```{r}
+model.full2=glm(low~ageclasse2++lwt+race+smoke+ptl+ht+ui+ftv, family=binomial, data=birthwt) 
+summary(model.full2)
+anova(model.0,model.full2,test="Chisq")
+```
+
+
+
+
+
+## Selection de variables pas à pas
+```{r}
+modselect_st=stepAIC(model.full2,scope=list(upper~ageclasse2+lwt+race+smoke+ptl+ht+ui+ftv,lower=~1),trace=FALSE,direction=c("both"),data=birthwt)
+summary(modselect_st)
+```
+
+
+## Prédictions et qualité du modèle
+```{r}
+pred_01=modselect_st$fitted.values>1/2
+table(pred_01,low)
+predictions = predict(modselect_st,type = "response") 
+predictions_01 = predict(modselect_st,type = "response") > 1/2 
+table(predictions_01,low)
+```
+
+## Courbe ROC et AUC
+
+```{r,echo=FALSE}
+library(ROCR,quietly = TRUE)
+```
+
+
+```{r}
+pred <- prediction( predictions, low)
+perf <- performance( pred, "tpr", "fpr" )
+```
+
+
+```{r}
+plot( perf )
+```
+
+
+```{r}
+ROC_auc <- performance( pred,"auc")
+AUC_st <- ROC_auc@y.values[[1]] 
+print(AUC_st)
+```
+
+## Sélection de variables exhaustive
+
+```{r, include=FALSE, echo=T}
+library(caret)
+V<-10
+T<-2
+dataFolds <- caret::createMultiFolds(data[["low"]], k = V, times = T)
+computeErrGLM <- function(model, name) {
+  err <- mean((data[["low"]]-predict(model))^2)
+  errCp <- err * ( 1 + 2 * length(model[["coefficients"]]) / nrow(data))
+  errCVtmp <- matrix(0, nrow = 1, ncol = (T*V))
+  for (v in 1: (T*V)) {
+    datatrain <- slice(data, dataFolds[[v]])
+    datatest <- slice(data, -dataFolds[[v]])
+    regtmp <- glm(model, family=binomial, data = datatrain)
+    predtmp <- predict(regtmp, newdata = datatest)
+    #pred_01=regtmp$fitted.values>1/2
+    errCVtmp[v] <- mean((datatest[["low"]]-predtmp)^2)
+    predictions = predict(model,type = "response")
+    predtmp <- prediction( predictions, low) 
+    perftmp <- performance( predtmp, "tpr", "fpr" ) 
+    ROC_auctmp <- performance( predtmp,"auc") 
+    AUCtmp <- ROC_auctmp@y.values[[1]]
+  }
+  errCV <- mean(errCVtmp)
+  errCVup <- errCV + 2 * sd(errCVtmp) / sqrt(T*V)
+  LogLik <- -2 * logLik(model)
+  LogLikAIC <- AIC(model)
+  LogLikBIC <- BIC(model)
+  AUC=mean(AUCtmp)
+  data.frame( method = name, err = err, errCp = errCp, errCV = errCV,
+              errCVup = errCVup , LogLik = LogLik, LogLikAIC = LogLikAIC,
+              LogLikBIC = LogLikBIC,AUC_CV=-AUC)
+ 
+}
+```
+
+
+
+## Tous les sous-modèles
+```{r, include=FALSE, echo=T}
+sub_var<-list(list())
+sub_var_copie<-list(list())
+variables<-list("ageclasse2","lwt","race","smoke","ptl","ht","ui","ftv")
+for (j in 1: 8){
+  sub_var_copie<-sub_var
+  for (k in 1: length(sub_var_copie)){
+   sub_var_copie[[k]]=c(sub_var_copie[[k]],list(variables[[j]]),recursive=FALSE)
+  }
+  sub_var<-c(sub_var,sub_var_copie,recursive=FALSE)
+}
+
+
+model_exh<-list()
+model_size<-vector()
+
+for (j in 2: 2^length(variables)){
+  nom<-sub_var[[j]][[1]]
+  model_size<-append(model_size,length(sub_var[[j]]))
+  if (length(sub_var[[j]]) >= 2) {
+    for (k in 2:length(sub_var[[j]])) {
+      nom<-paste(nom,sub_var[[j]][[k]],sep="+")
+    }
+  }
+  model_exh<-c(model_exh,list(list(nom,glm(as.formula(paste("low ~",nom)),family="binomial",data=birthwt))),recursive=FALSE)
+}
+model_order<-order(model_size)
+model_exh<-model_exh[model_order]
+```
+
+## Calculs des critères de qualités pour tous les sous-modèles
+```{r, include=FALSE, echo=TRUE}
+errs_exh = computeErrGLM(model_exh[[1]][[2]], model_exh[[1]][[1]])
+for (j in 2: 2^length(variables)-1){
+errs_exh<-rbind(errs_exh,computeErrGLM(model_exh[[j]][[2]],model_exh[[j]][[1]]))
+}
+
+
+errs_exh
+
+Find_Best <- function(errs) { 
+  nameserr <- names(errs)[-1]
+  for (nameerr in nameserr) {
+    writeLines(strwrap(paste(nameerr, ": ",
+                             errs[["method"]][which.min(errs[[nameerr]])],
+                             "(",min(errs[[nameerr]], na.rm =TRUE),")")))
+  }
+}
+```
+## Résultats de la Sélection exhaustive
+```{r}
+print(Find_Best(errs_exh))
+```
+```{r}
+model_AUC=glm(low~Age2+Sex+Fare2+SibSp+Pclass, family=binomial,data=birthwt)
+```
+## Courbe ROC et AUC
+```{r}
+pred_01=model_AUC$fitted.values>1/2
+table(pred_01,low)
+predictions = predict(model_AUC,type = "response") 
+predictions_01 = predict(model_AUC,type = "response") > 1/2 
+table(predictions_01,low)
+```
+
+
+
+
+```{r}
+pred <- prediction( predictions, low)
+perf <- performance( pred, "tpr", "fpr" )
+```
+
+
+```{r}
+plot( perf )
+```
+
+
+```{r}
+ROC_auc <- performance( pred,"auc")
+AUC_sel_CV <- ROC_auc@y.values[[1]] 
+print(AUC_sel_CV)
+print(AUC_st)
+print(Find_Best(errs_exh))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
